@@ -69,7 +69,7 @@ Tek dosyalık bir Windows PowerShell 5.1 + WPF uygulamasıdır.
 .\tests\Test-FastUpdate.ps1          # Birim testleri
 ```
 
-Her `main` gönderiminde GitHub Actions, programı gerçek bir Windows makinesinde test eder, örnek bir tarama raporu üretir ve `.exe` dosyasını derler. `v1.2.0` gibi bir etiket gönderildiğinde `.exe` otomatik olarak Releases sayfasına yüklenir.
+Her `main` gönderiminde GitHub Actions, programı gerçek bir Windows makinesinde test eder, örnek bir tarama raporu üretir ve `.exe` dosyasını derler. `FastUpdate.ps1` içindeki `$AppVersion` artırılıp `main`'e gönderildiğinde o sürüm `.exe` ile birlikte Releases sayfasında otomatik yayınlanır.
 
 ## Lisans
 

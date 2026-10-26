@@ -53,6 +53,7 @@ jobs:
         run: |
           Install-Module ps2exe -Force -Scope CurrentUser
           $ver = (Select-String -Path .\FastUpdate.ps1 -Pattern "^\`$AppVersion = '(.+)'").Matches[0].Groups[1].Value
+          "VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           New-Item -ItemType Directory -Force dist | Out-Null
           Invoke-ps2exe -inputFile .\FastUpdate.ps1 -outputFile .\dist\FastUpdate.exe -noConsole -requireAdmin `
             -title 'FastUpdate' -product 'FastUpdate' -description 'Ücretsiz sürücü ve program güncelleyici' `
@@ -65,10 +66,27 @@ jobs:
           name: FastUpdate
           path: dist/
 
+      # main'e yeni bir $AppVersion ile gönderim yapılınca o sürüm otomatik yayınlanır
+      - name: Sürüm zaten yayında mı?
+        id: check
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v$VERSION" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Sürüm yayınla
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(github.ref, 'refs/tags/v') || steps.check.outputs.publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', env.VERSION) }}
+          name: FastUpdate ${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
           files: |
             dist/FastUpdate.exe
             FastUpdate.zip
