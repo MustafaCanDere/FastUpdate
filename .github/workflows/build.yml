@@ -1,0 +1,75 @@
+name: Test ve Derleme
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Birim testleri
+        shell: powershell
+        run: .\tests\Test-FastUpdate.ps1
+
+      - name: PSScriptAnalyzer
+        shell: powershell
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          $r = Invoke-ScriptAnalyzer -Path .\FastUpdate.ps1 -Severity Error
+          $r | Format-Table -AutoSize | Out-String | Write-Host
+          if ($r) { exit 1 }
+
+      - name: Gerçek tarama (rapor modu)
+        shell: powershell
+        timeout-minutes: 25
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'FastUpdate-Rapor.html'
+          powershell -NoProfile -ExecutionPolicy Bypass -File .\FastUpdate.ps1 -ReportOnly -ReportPath $out
+          if ($LASTEXITCODE -ne 0) { throw "Çıkış kodu $LASTEXITCODE" }
+          Get-Content "$env:APPDATA\FastUpdate\logs\*.log" | Write-Host
+          if (-not (Test-Path $out)) { throw 'Rapor oluşturulmadı' }
+          if ((Get-Content $out -Raw) -notmatch 'FastUpdate Raporu') { throw 'Rapor içeriği hatalı' }
+          if (Select-String -Path "$env:APPDATA\FastUpdate\logs\*.log" -Pattern '^.{0,12}Hata:' -Quiet) { throw 'Taramada hata oluştu' }
+
+      - name: Örnek rapor
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ornek-rapor
+          path: ${{ runner.temp }}/FastUpdate-Rapor.html
+          if-no-files-found: ignore
+
+      - name: .exe derle
+        shell: powershell
+        run: |
+          Install-Module ps2exe -Force -Scope CurrentUser
+          $ver = (Select-String -Path .\FastUpdate.ps1 -Pattern "^\`$AppVersion = '(.+)'").Matches[0].Groups[1].Value
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Invoke-ps2exe -inputFile .\FastUpdate.ps1 -outputFile .\dist\FastUpdate.exe -noConsole -requireAdmin `
+            -title 'FastUpdate' -product 'FastUpdate' -description 'Ücretsiz sürücü ve program güncelleyici' `
+            -company 'MustafaCanDere' -copyright 'MIT' -version "$ver.0"
+          Copy-Item FastUpdate.ps1, FastUpdate.bat, README.md, LICENSE dist\
+          Compress-Archive -Path dist\* -DestinationPath FastUpdate.zip -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FastUpdate
+          path: dist/
+
+      - name: Sürüm yayınla
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/FastUpdate.exe
+            FastUpdate.zip
+          generate_release_notes: true
