@@ -20,6 +20,25 @@ jobs:
         shell: powershell
         run: .\tests\Test-FastUpdate.ps1
 
+      - name: Ekran görüntüleri
+        shell: powershell
+        run: .\tests\Render-Screenshots.ps1 -OutDir "$env:RUNNER_TEMP\shots"
+
+      - name: Ekran görüntülerini yayınla
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        shell: bash
+        run: |
+          set -e
+          BRANCH=screenshots
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then BRANCH=screenshots-preview; fi
+          mkdir -p "$RUNNER_TEMP/pub" && cd "$RUNNER_TEMP/pub"
+          git init -q -b "$BRANCH"
+          cp "$RUNNER_TEMP"/shots/*.png .
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add *.png && git commit -qm "Ekran görüntüleri: ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
+
       - name: PSScriptAnalyzer
         shell: powershell
         run: |
