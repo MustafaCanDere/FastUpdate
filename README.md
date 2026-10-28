@@ -4,13 +4,22 @@
 
 [![Test ve Derleme](https://github.com/MustafaCanDere/FastUpdate/actions/workflows/build.yml/badge.svg)](https://github.com/MustafaCanDere/FastUpdate/actions/workflows/build.yml)
 
+![FastUpdate genel bakış](https://raw.githubusercontent.com/MustafaCanDere/FastUpdate/screenshots/screenshot-home.png)
+
+<details><summary>Diğer ekranlar</summary>
+
+![Sürücüler](https://raw.githubusercontent.com/MustafaCanDere/FastUpdate/screenshots/screenshot-drivers.png)
+![Araçlar ve ayarlar](https://raw.githubusercontent.com/MustafaCanDere/FastUpdate/screenshots/screenshot-tools.png)
+
+</details>
+
 ## İndir
 
 **[Son sürümü indir (Releases)](https://github.com/MustafaCanDere/FastUpdate/releases/latest)** ve `FastUpdate.exe` dosyasını çalıştır. Kurulum gerekmez.
 
 > Program imzasız olduğu için Windows SmartScreen "Bilinmeyen yayımcı" uyarısı gösterebilir. **Ek bilgi > Yine de çalıştır** ile açabilirsin. Kaynak kodun tamamı bu depodadır.
 
-Alternatif olarak depoyu indirip `FastUpdate.bat` dosyasına çift tıklayabilirsin.
+Program kendi penceresinde açılır, terminal penceresi görünmez. Alternatif olarak depoyu indirip `FastUpdate.bat` dosyasına çift tıklayabilirsin.
 
 ## Özellikler
 

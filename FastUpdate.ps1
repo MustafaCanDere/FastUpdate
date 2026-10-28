@@ -23,7 +23,7 @@ param(
     [string]$ReportPath
 )
 
-$AppVersion = '1.1.0'
+$AppVersion = '1.2.0'
 $RepoUrl    = 'https://github.com/MustafaCanDere/FastUpdate'
 
 #region Yol, ayar ve günlük
@@ -61,6 +61,24 @@ function Get-LaunchCommand([string]$extraArgs) {
     if ($IsExe) { return @{ File = $SelfPath; Args = $extraArgs } }
     return @{ File = 'powershell.exe'
               Args = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$SelfPath`" $extraArgs" }
+}
+#endregion
+
+#region Konsol penceresini gizle
+# Arayüz modunda arkada siyah bir terminal penceresi görünmesin.
+# Sadece bu işlem için açılmış bir konsolsa gizlenir (kullanıcının kendi terminaline dokunulmaz).
+if (-not $Silent -and -not $ReportOnly) {
+    try {
+        Add-Type -Namespace FastUpdateNative -Name Console -MemberDefinition @'
+[DllImport("kernel32.dll")] public static extern System.IntPtr GetConsoleWindow();
+[DllImport("kernel32.dll")] public static extern uint GetConsoleProcessList(uint[] list, uint count);
+[DllImport("user32.dll")] public static extern bool ShowWindow(System.IntPtr hWnd, int nCmdShow);
+'@
+        $h = [FastUpdateNative.Console]::GetConsoleWindow()
+        if ($h -ne [IntPtr]::Zero -and [FastUpdateNative.Console]::GetConsoleProcessList((New-Object uint[] 4), 4) -le 1) {
+            [void][FastUpdateNative.Console]::ShowWindow($h, 0)
+        }
+    } catch {}
 }
 #endregion
 
@@ -688,164 +706,586 @@ public class FuItem : INotifyPropertyChanged {
 '@
 
 $checkColumn = @'
-            <DataGridTemplateColumn Header="" Width="34">
-              <DataGridTemplateColumn.CellTemplate>
-                <DataTemplate>
-                  <CheckBox IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Updatable}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </DataTemplate>
-              </DataGridTemplateColumn.CellTemplate>
-            </DataGridTemplateColumn>
+              <DataGridTemplateColumn Header="" Width="44" MinWidth="44" CanUserResize="False">
+                <DataGridTemplateColumn.CellTemplate>
+                  <DataTemplate>
+                    <CheckBox IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Updatable}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+              </DataGridTemplateColumn>
 '@
 
 $xamlText = @'
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="FastUpdate - Ücretsiz Sürücü ve Program Güncelleyici" Height="760" Width="1160" MinWidth="900" MinHeight="560"
-        WindowStartupLocation="CenterScreen" Background="#F3F5F9" FontFamily="Segoe UI" FontSize="13">
+        Title="FastUpdate" Height="780" Width="1240" MinWidth="980" MinHeight="620"
+        WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="CanResize"
+        Background="#0B1220" Foreground="#E5ECF6" FontFamily="Segoe UI" FontSize="13"
+        TextOptions.TextFormattingMode="Display" UseLayoutRounding="True">
+  <WindowChrome.WindowChrome>
+    <WindowChrome CaptionHeight="46" ResizeBorderThickness="6" GlassFrameThickness="0" CornerRadius="0" UseAeroCaptionButtons="False"/>
+  </WindowChrome.WindowChrome>
+
   <Window.Resources>
+    <SolidColorBrush x:Key="Card" Color="#111A2E"/>
+    <SolidColorBrush x:Key="Line" Color="#1E2A44"/>
+    <SolidColorBrush x:Key="Muted" Color="#8A9BB8"/>
+    <SolidColorBrush x:Key="Accent" Color="#3B82F6"/>
+
+    <!-- Genel düğme -->
     <Style TargetType="Button">
-      <Setter Property="Padding" Value="14,7"/>
+      <Setter Property="Foreground" Value="#E5ECF6"/>
+      <Setter Property="Background" Value="#1A2540"/>
+      <Setter Property="BorderBrush" Value="#26324F"/>
+      <Setter Property="Padding" Value="16,9"/>
       <Setter Property="Margin" Value="0,0,8,0"/>
-      <Setter Property="Background" Value="#FFFFFF"/>
-      <Setter Property="BorderBrush" Value="#C9D1DE"/>
       <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="b" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="10" Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Opacity" Value="0.85"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="b" Property="Opacity" Value="0.7"/></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter TargetName="b" Property="Opacity" Value="0.4"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
     <Style x:Key="Primary" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-      <Setter Property="Background" Value="#1F6FEB"/>
+      <Setter Property="Background" Value="#3B82F6"/>
+      <Setter Property="BorderBrush" Value="#3B82F6"/>
       <Setter Property="Foreground" Value="White"/>
-      <Setter Property="BorderBrush" Value="#1F6FEB"/>
-      <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
+    <Style x:Key="Success" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="#16A34A"/>
+      <Setter Property="BorderBrush" Value="#16A34A"/>
+      <Setter Property="Foreground" Value="White"/>
+    </Style>
+    <Style x:Key="Chrome" TargetType="Button">
+      <Setter Property="Foreground" Value="#B8C4D9"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Width" Value="46"/>
+      <Setter Property="Height" Value="46"/>
+      <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+      <Setter Property="FontSize" Value="10"/>
+      <Setter Property="WindowChrome.IsHitTestVisibleInChrome" Value="True"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="b" Background="{TemplateBinding Background}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="#1E293B"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="ChromeClose" TargetType="Button" BasedOn="{StaticResource Chrome}">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="b" Background="Transparent">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="#C42B1C"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <!-- Yan menü öğesi -->
+    <Style x:Key="Nav" TargetType="RadioButton">
+      <Setter Property="Foreground" Value="#B8C4D9"/>
+      <Setter Property="Margin" Value="10,2"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="GroupName" Value="nav"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RadioButton">
+            <Border x:Name="b" Background="Transparent" CornerRadius="8" Padding="12,10">
+              <Grid>
+                <Border x:Name="bar" Width="3" Height="18" CornerRadius="2" Background="#3B82F6" HorizontalAlignment="Left" Margin="-12,0,0,0" Visibility="Hidden"/>
+                <ContentPresenter/>
+              </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="#141E33"/></Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="b" Property="Background" Value="#1A2540"/>
+                <Setter TargetName="bar" Property="Visibility" Value="Visible"/>
+                <Setter Property="Foreground" Value="White"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="Icon" TargetType="TextBlock">
+      <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+      <Setter Property="FontSize" Value="16"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Margin" Value="0,0,14,0"/>
+    </Style>
+    <Style x:Key="Badge" TargetType="Border">
+      <Setter Property="Background" Value="#3B82F6"/>
+      <Setter Property="CornerRadius" Value="9"/>
+      <Setter Property="Padding" Value="7,1"/>
+      <Setter Property="HorizontalAlignment" Value="Right"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="CardBorder" TargetType="Border">
+      <Setter Property="Background" Value="#111A2E"/>
+      <Setter Property="BorderBrush" Value="#1E2A44"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="Padding" Value="20"/>
+    </Style>
+    <Style TargetType="CheckBox">
+      <Setter Property="Foreground" Value="#E5ECF6"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style TargetType="RadioButton">
+      <Setter Property="Foreground" Value="#E5ECF6"/>
+      <Setter Property="Margin" Value="0,4"/>
+    </Style>
+
+    <!-- İnce koyu kaydırma çubukları -->
+    <Style x:Key="FuThumb" TargetType="Thumb">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Thumb"><Border CornerRadius="4" Background="#334155"/></ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ScrollBar">
+      <Setter Property="Width" Value="10"/>
+      <Setter Property="MinWidth" Value="10"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ScrollBar">
+            <Track x:Name="PART_Track" IsDirectionReversed="True">
+              <Track.Thumb><Thumb Style="{StaticResource FuThumb}" Margin="2"/></Track.Thumb>
+            </Track>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <Trigger Property="Orientation" Value="Horizontal">
+          <Setter Property="Width" Value="Auto"/>
+          <Setter Property="MinWidth" Value="0"/>
+          <Setter Property="Height" Value="10"/>
+          <Setter Property="MinHeight" Value="10"/>
+          <Setter Property="Template">
+            <Setter.Value>
+              <ControlTemplate TargetType="ScrollBar">
+                <Track x:Name="PART_Track" IsDirectionReversed="False">
+                  <Track.Thumb><Thumb Style="{StaticResource FuThumb}" Margin="2"/></Track.Thumb>
+                </Track>
+              </ControlTemplate>
+            </Setter.Value>
+          </Setter>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
+    <!-- Tablo -->
     <Style TargetType="DataGrid">
       <Setter Property="AutoGenerateColumns" Value="False"/>
       <Setter Property="CanUserAddRows" Value="False"/>
+      <Setter Property="CanUserResizeRows" Value="False"/>
       <Setter Property="HeadersVisibility" Value="Column"/>
-      <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-      <Setter Property="HorizontalGridLinesBrush" Value="#E6EAF0"/>
-      <Setter Property="Background" Value="White"/>
-      <Setter Property="BorderBrush" Value="#D8DEE8"/>
-      <Setter Property="RowHeight" Value="28"/>
+      <Setter Property="GridLinesVisibility" Value="None"/>
+      <Setter Property="Background" Value="#111A2E"/>
+      <Setter Property="RowBackground" Value="#111A2E"/>
+      <Setter Property="AlternatingRowBackground" Value="#0F1729"/>
+      <Setter Property="Foreground" Value="#E5ECF6"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="RowHeight" Value="38"/>
       <Setter Property="SelectionMode" Value="Extended"/>
+      <Setter Property="SelectionUnit" Value="FullRow"/>
+      <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+    </Style>
+    <Style TargetType="DataGridColumnHeader">
+      <Setter Property="Background" Value="#0F1729"/>
+      <Setter Property="Foreground" Value="#8A9BB8"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Padding" Value="12,10"/>
+      <Setter Property="BorderBrush" Value="#1E2A44"/>
+      <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    </Style>
+    <Style TargetType="DataGridCell">
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="12,0"/>
+      <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="DataGridCell">
+            <Border Background="Transparent" Padding="{TemplateBinding Padding}">
+              <ContentPresenter VerticalAlignment="Center"/>
+            </Border>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="DataGridRow">
+      <Style.Triggers>
+        <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="#16213A"/></Trigger>
+        <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="#1C2B4A"/></Trigger>
+      </Style.Triggers>
     </Style>
   </Window.Resources>
-  <DockPanel>
-    <Menu DockPanel.Dock="Top" Background="#E9EDF3" Padding="6,2">
-      <MenuItem Header="_Araçlar">
-        <MenuItem Name="MnuBackup" Header="Sürücüleri yedekle..."/>
-        <MenuItem Name="MnuRestoreDrv" Header="Sürücü yedeğini geri yükle..."/>
-        <MenuItem Name="MnuRestorePoint" Header="Geri yükleme noktası oluştur"/>
-        <Separator/>
-        <MenuItem Name="MnuReport" Header="Rapor kaydet (HTML)..."/>
-        <MenuItem Name="MnuLogs" Header="Günlük klasörünü aç"/>
-        <Separator/>
-        <MenuItem Header="Otomatik çalıştırma">
-          <MenuItem Name="MnuAutoOff" Header="Kapalı" IsCheckable="True"/>
-          <MenuItem Name="MnuAutoScan" Header="Her pazar tara (pencere açılır)" IsCheckable="True"/>
-          <MenuItem Name="MnuAutoSilent" Header="Her pazar sessizce güncelle" IsCheckable="True"/>
-        </MenuItem>
-        <Separator/>
-        <MenuItem Name="MnuUnignore" Header="Yok sayılanları sıfırla"/>
-      </MenuItem>
-      <MenuItem Header="_Yardım">
-        <MenuItem Name="MnuGithub" Header="GitHub sayfası ve yeni sürümler"/>
-        <MenuItem Name="MnuAbout" Header="Hakkında"/>
-      </MenuItem>
-    </Menu>
 
-    <DockPanel Margin="16,12,16,16">
-      <Grid DockPanel.Dock="Top" Margin="0,0,0,10">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <StackPanel>
-          <TextBlock Text="FastUpdate" FontSize="24" FontWeight="Bold" Foreground="#1B2433"/>
-          <TextBlock Foreground="#5B6577" TextWrapping="Wrap" Text="Sürücüler Windows Update ve üreticilerin (NVIDIA, AMD, Intel) resmi araçlarıyla, programlar winget ile güncellenir. Tamamen ücretsiz ve reklamsız."/>
-        </StackPanel>
-        <Border Grid.Column="1" Background="White" BorderBrush="#D8DEE8" BorderThickness="1" CornerRadius="6" Padding="10,6" Margin="12,0,0,0" MaxWidth="460">
-          <TextBlock Name="TxtSys" Foreground="#3A4556" FontSize="12" TextWrapping="Wrap" Text="Sistem bilgisi okunuyor..."/>
-        </Border>
-      </Grid>
+  <Border Name="RootBorder" BorderBrush="#1E2A44" BorderThickness="1">
+    <Grid>
+      <Grid.ColumnDefinitions><ColumnDefinition Width="240"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Grid.RowDefinitions><RowDefinition Height="46"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
 
-      <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10" LastChildFill="False">
-        <Button Name="BtnScan" Content="Taramayı Başlat" Style="{StaticResource Primary}"/>
-        <Button Name="BtnUpdate" Content="Seçilenleri Güncelle" Style="{StaticResource Primary}" Background="#1A7F37" BorderBrush="#1A7F37" IsEnabled="False"/>
-        <Button Name="BtnSelAll" Content="Tümünü Seç"/>
-        <Button Name="BtnSelNone" Content="Seçimi Kaldır"/>
-        <Button Name="BtnIgnore" Content="Seçilenleri Yok Say" ToolTip="Seçilen öğeler sonraki taramalarda gösterilmez"/>
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-          <TextBlock Text="Ara:" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#5B6577"/>
-          <TextBox Name="TxtSearch" Width="200" Padding="4,4" VerticalContentAlignment="Center"/>
-        </StackPanel>
-      </DockPanel>
-
-      <CheckBox Name="ChkRestore" DockPanel.Dock="Top" Margin="0,0,0,8" Content="Sürücü ve Windows güncellemelerinden önce sistem geri yükleme noktası oluştur"/>
-
-      <Grid DockPanel.Dock="Bottom" Margin="0,10,0,0">
-        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="140"/></Grid.RowDefinitions>
-        <DockPanel Grid.Row="0" Margin="0,0,0,6">
-          <ProgressBar Name="Progress" DockPanel.Dock="Right" Width="220" Height="10" Visibility="Hidden"/>
-          <TextBlock Name="TxtStatus" Text="Hazır. Başlamak için 'Taramayı Başlat'a tıklayın." Foreground="#1B2433" FontWeight="SemiBold"/>
+      <!-- Başlık çubuğu -->
+      <Border Grid.ColumnSpan="2" Background="#0F172A">
+        <DockPanel>
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="18,0,0,0">
+            <Border Width="24" Height="24" CornerRadius="6" Background="#3B82F6">
+              <Path Data="M13,2 L4,14 H11 L10,22 L20,9 H13 Z" Fill="White" Stretch="Uniform" Margin="5"/>
+            </Border>
+            <TextBlock Text="FastUpdate" FontWeight="Bold" FontSize="14" Margin="10,0,0,0" VerticalAlignment="Center"/>
+            <TextBlock Name="TxtVersion" Text="" Foreground="#5E6E8C" FontSize="12" Margin="8,1,0,0" VerticalAlignment="Center"/>
+          </StackPanel>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Name="BtnMin" Style="{StaticResource Chrome}" Content="&#xE921;"/>
+            <Button Name="BtnMax" Style="{StaticResource Chrome}" Content="&#xE922;"/>
+            <Button Name="BtnClose" Style="{StaticResource ChromeClose}" Content="&#xE8BB;"/>
+          </StackPanel>
         </DockPanel>
-        <TextBox Name="TxtLog" Grid.Row="1" IsReadOnly="True" FontFamily="Consolas" FontSize="12" Background="#0F1720" Foreground="#C9D7E8"
-                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" BorderThickness="0" Padding="8"/>
+      </Border>
+
+      <!-- Yan menü -->
+      <Border Grid.Row="1" Grid.RowSpan="2" Background="#0F172A" BorderBrush="#1E2A44" BorderThickness="0,0,1,0">
+        <DockPanel Margin="0,12,0,12">
+          <StackPanel DockPanel.Dock="Bottom" Margin="22,0">
+            <TextBlock Text="Ücretsiz ve açık kaynak" Foreground="#5E6E8C" FontSize="11"/>
+            <TextBlock Text="Yalnızca resmi kaynaklar" Foreground="#5E6E8C" FontSize="11"/>
+          </StackPanel>
+          <StackPanel>
+            <RadioButton Name="NavHome" Style="{StaticResource Nav}" IsChecked="True">
+              <DockPanel><TextBlock Style="{StaticResource Icon}" Text="&#xE80F;"/><TextBlock Text="Genel Bakış"/></DockPanel>
+            </RadioButton>
+            <TextBlock Text="GÜNCELLEMELER" Foreground="#5E6E8C" FontSize="11" FontWeight="SemiBold" Margin="24,16,0,6"/>
+            <RadioButton Name="NavDrivers" Style="{StaticResource Nav}">
+              <DockPanel><TextBlock Style="{StaticResource Icon}" Text="&#xE772;"/>
+                <Border Name="BadgeDrivers" DockPanel.Dock="Right" Style="{StaticResource Badge}" Visibility="Collapsed"><TextBlock Name="CntDrivers" Foreground="White" FontSize="11" FontWeight="Bold"/></Border>
+                <TextBlock Text="Sürücüler"/></DockPanel>
+            </RadioButton>
+            <RadioButton Name="NavHw" Style="{StaticResource Nav}">
+              <DockPanel><TextBlock Style="{StaticResource Icon}" Text="&#xE950;"/>
+                <Border Name="BadgeHw" DockPanel.Dock="Right" Style="{StaticResource Badge}" Background="#F59E0B" Visibility="Collapsed"><TextBlock Name="CntHw" Foreground="White" FontSize="11" FontWeight="Bold"/></Border>
+                <TextBlock Text="Donanım"/></DockPanel>
+            </RadioButton>
+            <RadioButton Name="NavApps" Style="{StaticResource Nav}">
+              <DockPanel><TextBlock Style="{StaticResource Icon}" Text="&#xE71D;"/>
+                <Border Name="BadgeApps" DockPanel.Dock="Right" Style="{StaticResource Badge}" Visibility="Collapsed"><TextBlock Name="CntApps" Foreground="White" FontSize="11" FontWeight="Bold"/></Border>
+                <TextBlock Text="Programlar"/></DockPanel>
+            </RadioButton>
+            <RadioButton Name="NavWindows" Style="{StaticResource Nav}">
+              <DockPanel><TextBlock Style="{StaticResource Icon}" Text="&#xE895;"/>
+                <Border Name="BadgeWindows" DockPanel.Dock="Right" Style="{StaticResource Badge}" Visibility="Collapsed"><TextBlock Name="CntWindows" Foreground="White" FontSize="11" FontWeight="Bold"/></Border>
+                <TextBlock Text="Windows"/></DockPanel>
+            </RadioButton>
+            <TextBlock Text="DİĞER" Foreground="#5E6E8C" FontSize="11" FontWeight="SemiBold" Margin="24,16,0,6"/>
+            <RadioButton Name="NavTools" Style="{StaticResource Nav}">
+              <DockPanel><TextBlock Style="{StaticResource Icon}" Text="&#xE90F;"/><TextBlock Text="Araçlar ve Ayarlar"/></DockPanel>
+            </RadioButton>
+            <RadioButton Name="NavLog" Style="{StaticResource Nav}">
+              <DockPanel><TextBlock Style="{StaticResource Icon}" Text="&#xE81C;"/><TextBlock Text="İşlem Geçmişi"/></DockPanel>
+            </RadioButton>
+          </StackPanel>
+        </DockPanel>
+      </Border>
+
+      <!-- İçerik -->
+      <Grid Grid.Row="1" Grid.Column="1" Margin="28,22,28,12">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+
+        <DockPanel Margin="0,0,0,16">
+          <Border Name="SearchBox" DockPanel.Dock="Right" Background="#111A2E" BorderBrush="#26324F" BorderThickness="1" CornerRadius="8" Width="260" Height="38" VerticalAlignment="Center" Visibility="Collapsed">
+            <Grid Margin="12,0">
+              <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="13" Foreground="#5E6E8C" HorizontalAlignment="Left"/>
+              <TextBlock Name="SearchHint" Text="Ara..." Foreground="#5E6E8C" VerticalAlignment="Center" Margin="26,0,0,0" IsHitTestVisible="False"/>
+              <TextBox Name="TxtSearch" Background="Transparent" BorderThickness="0" Foreground="#E5ECF6" CaretBrush="White" VerticalAlignment="Center" Margin="22,0,0,0"/>
+            </Grid>
+          </Border>
+          <StackPanel>
+            <TextBlock Name="TxtPageTitle" Text="Genel Bakış" FontSize="26" FontWeight="Bold"/>
+            <TextBlock Name="TxtPageSub" Text="" Foreground="#8A9BB8" Margin="0,4,0,0" TextWrapping="Wrap"/>
+          </StackPanel>
+        </DockPanel>
+
+        <StackPanel Name="ListBar" Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,14" Visibility="Collapsed">
+          <Button Name="BtnUpdate" Style="{StaticResource Success}" Content="Seçilenleri Güncelle" IsEnabled="False"/>
+          <Button Name="BtnSelAll" Content="Tümünü Seç"/>
+          <Button Name="BtnSelNone" Content="Seçimi Kaldır"/>
+          <Button Name="BtnIgnore" Content="Yok Say" ToolTip="Seçilen öğeler sonraki taramalarda gösterilmez"/>
+        </StackPanel>
+
+        <TabControl Name="Tabs" Grid.Row="2" Background="Transparent" BorderThickness="0" Padding="0">
+          <TabControl.ItemContainerStyle>
+            <Style TargetType="TabItem"><Setter Property="Visibility" Value="Collapsed"/></Style>
+          </TabControl.ItemContainerStyle>
+
+          <!-- 0: Genel bakış -->
+          <TabItem Name="TabHome">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <StackPanel>
+                <Border Style="{StaticResource CardBorder}" Padding="28">
+                  <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#1D3B7A" Offset="0"/>
+                      <GradientStop Color="#111A2E" Offset="1"/>
+                    </LinearGradientBrush>
+                  </Border.Background>
+                  <DockPanel>
+                    <Grid DockPanel.Dock="Left" Width="110" Height="110" Margin="0,0,28,0">
+                      <Ellipse Name="HeroRing" Stroke="#3B82F6" StrokeThickness="6" Opacity="0.9"/>
+                      <TextBlock Name="HeroIcon" Style="{StaticResource Icon}" Text="&#xE83D;" FontSize="44" Margin="0" HorizontalAlignment="Center" Foreground="White"/>
+                    </Grid>
+                    <StackPanel VerticalAlignment="Center">
+                      <TextBlock Name="HeroTitle" Text="Taramaya hazır" FontSize="28" FontWeight="Bold"/>
+                      <TextBlock Name="HeroSub" Text="Sürücüleri, donanımı, programları ve Windows'u tek tıkla kontrol et." Foreground="#B8C4D9" Margin="0,6,0,18" TextWrapping="Wrap"/>
+                      <StackPanel Orientation="Horizontal">
+                        <Button Name="BtnScan" Style="{StaticResource Primary}" Padding="26,12" FontSize="14">
+                          <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="14" Margin="0,0,10,0"/><TextBlock Name="TxtScanBtn" Text="Taramayı Başlat"/></StackPanel>
+                        </Button>
+                        <Button Name="BtnUpdateAll" Style="{StaticResource Success}" Padding="26,12" FontSize="14" IsEnabled="False">
+                          <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE896;" FontSize="14" Margin="0,0,10,0"/><TextBlock Text="Önerilenleri Güncelle"/></StackPanel>
+                        </Button>
+                      </StackPanel>
+                    </StackPanel>
+                  </DockPanel>
+                </Border>
+
+                <UniformGrid Columns="4" Margin="-6,16,-6,0">
+                  <Button Name="StatDrivers" Margin="6" Padding="0" Background="#111A2E" BorderBrush="#1E2A44" HorizontalContentAlignment="Stretch">
+                    <StackPanel Margin="18,16" HorizontalAlignment="Left">
+                      <TextBlock Style="{StaticResource Icon}" Text="&#xE772;" Foreground="#3B82F6" FontSize="20"/>
+                      <TextBlock Name="NumDrivers" Text="-" FontSize="30" FontWeight="Bold" Margin="0,10,0,0"/>
+                      <TextBlock Text="Sürücü güncellemesi" Foreground="#8A9BB8" FontWeight="Normal"/>
+                      <TextBlock Name="NumProblems" Text="" Foreground="#EF4444" FontWeight="Normal" FontSize="12" Margin="0,2,0,0"/>
+                    </StackPanel>
+                  </Button>
+                  <Button Name="StatHw" Margin="6" Padding="0" Background="#111A2E" BorderBrush="#1E2A44" HorizontalContentAlignment="Stretch">
+                    <StackPanel Margin="18,16" HorizontalAlignment="Left">
+                      <TextBlock Style="{StaticResource Icon}" Text="&#xE950;" Foreground="#F59E0B" FontSize="20"/>
+                      <TextBlock Name="NumHw" Text="-" FontSize="30" FontWeight="Bold" Margin="0,10,0,0"/>
+                      <TextBlock Text="Eski donanım sürücüsü" Foreground="#8A9BB8" FontWeight="Normal"/>
+                      <TextBlock Name="NumHwTotal" Text="" Foreground="#8A9BB8" FontWeight="Normal" FontSize="12" Margin="0,2,0,0"/>
+                    </StackPanel>
+                  </Button>
+                  <Button Name="StatApps" Margin="6" Padding="0" Background="#111A2E" BorderBrush="#1E2A44" HorizontalContentAlignment="Stretch">
+                    <StackPanel Margin="18,16" HorizontalAlignment="Left">
+                      <TextBlock Style="{StaticResource Icon}" Text="&#xE71D;" Foreground="#A855F7" FontSize="20"/>
+                      <TextBlock Name="NumApps" Text="-" FontSize="30" FontWeight="Bold" Margin="0,10,0,0"/>
+                      <TextBlock Text="Program güncellemesi" Foreground="#8A9BB8" FontWeight="Normal"/>
+                    </StackPanel>
+                  </Button>
+                  <Button Name="StatWindows" Margin="6" Padding="0" Background="#111A2E" BorderBrush="#1E2A44" HorizontalContentAlignment="Stretch">
+                    <StackPanel Margin="18,16" HorizontalAlignment="Left">
+                      <TextBlock Style="{StaticResource Icon}" Text="&#xE895;" Foreground="#22C55E" FontSize="20"/>
+                      <TextBlock Name="NumWindows" Text="-" FontSize="30" FontWeight="Bold" Margin="0,10,0,0"/>
+                      <TextBlock Text="Windows güncellemesi" Foreground="#8A9BB8" FontWeight="Normal"/>
+                    </StackPanel>
+                  </Button>
+                </UniformGrid>
+
+                <Border Style="{StaticResource CardBorder}" Margin="0,10,0,0">
+                  <StackPanel>
+                    <TextBlock Text="Bu bilgisayar" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                    <ItemsControl Name="SysList">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <DockPanel Margin="0,4">
+                            <TextBlock Text="{Binding Key}" Width="150" Foreground="#8A9BB8"/>
+                            <TextBlock Text="{Binding Value}" TextWrapping="Wrap"/>
+                          </DockPanel>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
+
+          <!-- 1: Sürücüler -->
+          <TabItem Name="TabDrivers">
+            <Border Style="{StaticResource CardBorder}" Padding="0" ClipToBounds="True">
+              <DataGrid Name="GridDrivers">
+                <DataGrid.Columns>
+@@CHECK@@
+                  <DataGridTextColumn Header="Cihaz / Sürücü" Width="2.2*" MinWidth="160" Binding="{Binding Name}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Sınıf" Width="1.1*" MinWidth="60" Binding="{Binding Category}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Kurulu sürüm" Width="1.7*" MinWidth="60" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Yeni sürüm" Width="1.2*" MinWidth="60" Binding="{Binding NewVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Boyut" Width="0.8*" MinWidth="60" Binding="{Binding Size}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Üretici" Width="1.3*" MinWidth="60" Binding="{Binding Source}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Durum" Width="2*" MinWidth="60" Binding="{Binding Status}" IsReadOnly="True"/>
+                </DataGrid.Columns>
+              </DataGrid>
+            </Border>
+          </TabItem>
+
+          <!-- 2: Donanım -->
+          <TabItem Name="TabHw">
+            <Border Style="{StaticResource CardBorder}" Padding="0" ClipToBounds="True">
+              <DataGrid Name="GridHw">
+                <DataGrid.Columns>
+@@CHECK@@
+                  <DataGridTextColumn Header="Donanım" Width="2.2*" MinWidth="160" Binding="{Binding Name}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Tür" Width="1.1*" MinWidth="60" Binding="{Binding Category}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Sürücü sürümü" Width="1.4*" MinWidth="60" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Sürücü tarihi" Width="1*" MinWidth="60" Binding="{Binding NewVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Yaşı" Width="0.7*" MinWidth="70" Binding="{Binding Size}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Üretici" Width="1.2*" MinWidth="60" Binding="{Binding Source}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Durum" Width="2.4*" MinWidth="60" Binding="{Binding Status}" IsReadOnly="True"/>
+                </DataGrid.Columns>
+              </DataGrid>
+            </Border>
+          </TabItem>
+
+          <!-- 3: Programlar -->
+          <TabItem Name="TabApps">
+            <Border Style="{StaticResource CardBorder}" Padding="0" ClipToBounds="True">
+              <DataGrid Name="GridApps">
+                <DataGrid.Columns>
+@@CHECK@@
+                  <DataGridTextColumn Header="Program" Width="2.2*" MinWidth="160" Binding="{Binding Name}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Kimlik" Width="1.5*" Binding="{Binding Id}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Kurulu sürüm" Width="1.3*" MinWidth="60" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Yeni sürüm" Width="1.3*" MinWidth="60" Binding="{Binding NewVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Kaynak" Width="0.8*" MinWidth="60" Binding="{Binding Source}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Durum" Width="1.7*" MinWidth="60" Binding="{Binding Status}" IsReadOnly="True"/>
+                </DataGrid.Columns>
+              </DataGrid>
+            </Border>
+          </TabItem>
+
+          <!-- 4: Windows -->
+          <TabItem Name="TabWindows">
+            <Border Style="{StaticResource CardBorder}" Padding="0" ClipToBounds="True">
+              <DataGrid Name="GridWindows">
+                <DataGrid.Columns>
+@@CHECK@@
+                  <DataGridTextColumn Header="Güncelleme" Width="3*" MinWidth="240" Binding="{Binding Name}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Kategori" Width="1.5*" MinWidth="60" Binding="{Binding Category}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="KB" Width="1*" MinWidth="60" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Önem" Width="0.9*" MinWidth="60" Binding="{Binding NewVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Boyut" Width="0.8*" MinWidth="60" Binding="{Binding Size}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Durum" Width="2*" MinWidth="60" Binding="{Binding Status}" IsReadOnly="True"/>
+                </DataGrid.Columns>
+              </DataGrid>
+            </Border>
+          </TabItem>
+
+          <!-- 5: Araçlar ve ayarlar -->
+          <TabItem Name="TabTools">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <StackPanel>
+                <UniformGrid Columns="2" Margin="-6,0">
+                  <Border Style="{StaticResource CardBorder}" Margin="6">
+                    <StackPanel>
+                      <TextBlock Style="{StaticResource Icon}" Text="&#xE8F1;" Foreground="#3B82F6" FontSize="22" HorizontalAlignment="Left"/>
+                      <TextBlock Text="Sürücü yedeği" FontSize="16" FontWeight="SemiBold" Margin="0,10,0,4"/>
+                      <TextBlock Text="Kurulu tüm sürücüleri bir klasöre yedekle, Windows'u yeniden kurduğunda tek tıkla geri yükle." Foreground="#8A9BB8" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                      <StackPanel Orientation="Horizontal">
+                        <Button Name="BtnBackup" Style="{StaticResource Primary}" Content="Yedekle"/>
+                        <Button Name="BtnRestoreDrv" Content="Geri Yükle"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                  <Border Style="{StaticResource CardBorder}" Margin="6">
+                    <StackPanel>
+                      <TextBlock Style="{StaticResource Icon}" Text="&#xE777;" Foreground="#22C55E" FontSize="22" HorizontalAlignment="Left"/>
+                      <TextBlock Text="Sistem geri yükleme noktası" FontSize="16" FontWeight="SemiBold" Margin="0,10,0,4"/>
+                      <TextBlock Text="Bir sorun olursa bilgisayarı bu ana döndürebilmek için güvenli bir nokta oluştur." Foreground="#8A9BB8" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                      <StackPanel Orientation="Horizontal">
+                        <Button Name="BtnRestorePoint" Style="{StaticResource Primary}" Content="Şimdi Oluştur"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                  <Border Style="{StaticResource CardBorder}" Margin="6">
+                    <StackPanel>
+                      <TextBlock Style="{StaticResource Icon}" Text="&#xE9F9;" Foreground="#A855F7" FontSize="22" HorizontalAlignment="Left"/>
+                      <TextBlock Text="Rapor" FontSize="16" FontWeight="SemiBold" Margin="0,10,0,4"/>
+                      <TextBlock Text="Sistem bilgisi ve tarama sonuçlarını paylaşılabilir bir HTML raporuna kaydet." Foreground="#8A9BB8" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                      <StackPanel Orientation="Horizontal">
+                        <Button Name="BtnReport" Style="{StaticResource Primary}" Content="Rapor Kaydet"/>
+                        <Button Name="BtnLogs" Content="Günlük Klasörü"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                  <Border Style="{StaticResource CardBorder}" Margin="6">
+                    <StackPanel>
+                      <TextBlock Style="{StaticResource Icon}" Text="&#xE787;" Foreground="#F59E0B" FontSize="22" HorizontalAlignment="Left"/>
+                      <TextBlock Text="Otomatik çalıştırma" FontSize="16" FontWeight="SemiBold" Margin="0,10,0,8"/>
+                      <RadioButton Name="RbAutoOff" GroupName="auto" Content="Kapalı"/>
+                      <RadioButton Name="RbAutoScan" GroupName="auto" Content="Her pazar 12:00'de tara (pencere açılır)"/>
+                      <RadioButton Name="RbAutoSilent" GroupName="auto" Content="Her pazar 12:00'de sessizce güncelle"/>
+                    </StackPanel>
+                  </Border>
+                </UniformGrid>
+
+                <Border Style="{StaticResource CardBorder}" Margin="0,10,0,0">
+                  <StackPanel>
+                    <TextBlock Text="Ayarlar" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                    <CheckBox Name="ChkRestore" Content="Sürücü ve Windows güncellemelerinden önce geri yükleme noktası oluştur" Margin="0,0,0,10"/>
+                    <DockPanel>
+                      <Button Name="BtnUnignore" Content="Sıfırla" DockPanel.Dock="Right" Margin="0"/>
+                      <TextBlock Name="TxtIgnored" Text="Yok sayılan öğe yok." Foreground="#8A9BB8" VerticalAlignment="Center"/>
+                    </DockPanel>
+                  </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource CardBorder}" Margin="0,16,0,0">
+                  <DockPanel>
+                    <Button Name="BtnGithub" Content="GitHub ve yeni sürümler" DockPanel.Dock="Right" Margin="0" VerticalAlignment="Center"/>
+                    <StackPanel>
+                      <TextBlock Name="TxtAbout" Text="FastUpdate" FontSize="16" FontWeight="SemiBold"/>
+                      <TextBlock Text="Ücretsiz ve açık kaynak (MIT). Sürücüler Windows Update ve üreticilerin resmi araçlarından, programlar winget'ten gelir. Hiçbir veri toplanmaz." Foreground="#8A9BB8" TextWrapping="Wrap" Margin="0,4,16,0"/>
+                    </StackPanel>
+                  </DockPanel>
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
+          </TabItem>
+
+          <!-- 6: İşlem geçmişi -->
+          <TabItem Name="TabLog">
+            <Border Style="{StaticResource CardBorder}" Padding="4">
+              <TextBox Name="TxtLog" IsReadOnly="True" FontFamily="Cascadia Mono, Consolas" FontSize="12" Background="Transparent" Foreground="#C9D7E8"
+                       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap" BorderThickness="0" Padding="12"/>
+            </Border>
+          </TabItem>
+        </TabControl>
       </Grid>
 
-      <TabControl Name="Tabs">
-        <TabItem Name="TabDrivers" Header="Sürücüler">
-          <DataGrid Name="GridDrivers">
-            <DataGrid.Columns>
-@@CHECK@@
-              <DataGridTextColumn Header="Cihaz / Sürücü" Width="2*" Binding="{Binding Name}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Sınıf" Width="110" Binding="{Binding Category}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Kurulu sürüm" Width="170" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Yeni sürüm" Width="120" Binding="{Binding NewVersion}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Boyut" Width="80" Binding="{Binding Size}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Üretici" Width="130" Binding="{Binding Source}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Durum" Width="200" Binding="{Binding Status}" IsReadOnly="True"/>
-            </DataGrid.Columns>
-          </DataGrid>
-        </TabItem>
-        <TabItem Name="TabHw" Header="Donanım">
-          <DataGrid Name="GridHw">
-            <DataGrid.Columns>
-@@CHECK@@
-              <DataGridTextColumn Header="Donanım" Width="2*" Binding="{Binding Name}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Tür" Width="110" Binding="{Binding Category}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Sürücü sürümü" Width="140" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Sürücü tarihi" Width="100" Binding="{Binding NewVersion}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Yaşı" Width="70" Binding="{Binding Size}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Üretici" Width="120" Binding="{Binding Source}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Durum" Width="240" Binding="{Binding Status}" IsReadOnly="True"/>
-            </DataGrid.Columns>
-          </DataGrid>
-        </TabItem>
-        <TabItem Name="TabApps" Header="Programlar">
-          <DataGrid Name="GridApps">
-            <DataGrid.Columns>
-@@CHECK@@
-              <DataGridTextColumn Header="Program" Width="2*" Binding="{Binding Name}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Kimlik" Width="1.5*" Binding="{Binding Id}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Kurulu sürüm" Width="130" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Yeni sürüm" Width="130" Binding="{Binding NewVersion}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Kaynak" Width="80" Binding="{Binding Source}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Durum" Width="170" Binding="{Binding Status}" IsReadOnly="True"/>
-            </DataGrid.Columns>
-          </DataGrid>
-        </TabItem>
-        <TabItem Name="TabWindows" Header="Windows">
-          <DataGrid Name="GridWindows">
-            <DataGrid.Columns>
-@@CHECK@@
-              <DataGridTextColumn Header="Güncelleme" Width="3*" Binding="{Binding Name}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Kategori" Width="150" Binding="{Binding Category}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="KB" Width="100" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Önem" Width="90" Binding="{Binding NewVersion}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Boyut" Width="80" Binding="{Binding Size}" IsReadOnly="True"/>
-              <DataGridTextColumn Header="Durum" Width="200" Binding="{Binding Status}" IsReadOnly="True"/>
-            </DataGrid.Columns>
-          </DataGrid>
-        </TabItem>
-      </TabControl>
-    </DockPanel>
-  </DockPanel>
+      <!-- Durum çubuğu -->
+      <Border Grid.Row="2" Grid.Column="1" Background="#0F172A" BorderBrush="#1E2A44" BorderThickness="0,1,0,0" Padding="28,10">
+        <DockPanel>
+          <ProgressBar Name="Progress" DockPanel.Dock="Right" Width="220" Height="6" Visibility="Hidden" Foreground="#3B82F6" Background="#1E2A44" BorderThickness="0"/>
+          <TextBlock Name="TxtStatus" Text="Hazır." Foreground="#B8C4D9" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+        </DockPanel>
+      </Border>
+    </Grid>
+  </Border>
 </Window>
 '@
 [xml]$xaml = $xamlText.Replace('@@CHECK@@', $checkColumn)
@@ -864,8 +1304,12 @@ $ui.GridApps.ItemsSource    = $apps
 $ui.GridWindows.ItemsSource = $winUpd
 $allCollections = @($drivers, $hardware, $apps, $winUpd)
 $ui.ChkRestore.IsChecked = $Settings.RestorePoint
+$ui.TxtVersion.Text = "v$AppVersion"
+$ui.TxtAbout.Text = "FastUpdate $AppVersion"
 
-# Arama kutusu: tüm sekmelerde ad, kimlik, tür, üretici ve durumda arar
+# Arama kutusu: tüm listelerde ad, kimlik, tür, üretici ve durumda arar
+function ConvertTo-Brush([string]$hex) { return (New-Object System.Windows.Media.BrushConverter).ConvertFromString($hex) }
+
 $filter = [Predicate[object]]{
     param($i)
     $t = $ui.TxtSearch.Text
@@ -876,7 +1320,49 @@ $filter = [Predicate[object]]{
     return $false
 }
 foreach ($c in $allCollections) { [System.Windows.Data.CollectionViewSource]::GetDefaultView($c).Filter = $filter }
-$ui.TxtSearch.Add_TextChanged({ foreach ($c in $allCollections) { [System.Windows.Data.CollectionViewSource]::GetDefaultView($c).Refresh() } })
+$ui.TxtSearch.Add_TextChanged({
+    $ui.SearchHint.Visibility = $(if ($ui.TxtSearch.Text) { 'Hidden' } else { 'Visible' })
+    foreach ($c in $allCollections) { [System.Windows.Data.CollectionViewSource]::GetDefaultView($c).Refresh() }
+})
+
+# Pencere düğmeleri (özel başlık çubuğu)
+$ui.BtnMin.Add_Click({ $window.WindowState = 'Minimized' })
+$ui.BtnMax.Add_Click({ $window.WindowState = $(if ($window.WindowState -eq 'Maximized') { 'Normal' } else { 'Maximized' }) })
+$ui.BtnClose.Add_Click({ $window.Close() })
+$window.Add_StateChanged({
+    # Ekranı kaplayınca kenarların taşmaması için
+    $ui.RootBorder.Margin = [System.Windows.Thickness]::new($(if ($window.WindowState -eq 'Maximized') { 7 } else { 0 }))
+    $ui.BtnMax.Content = $(if ($window.WindowState -eq 'Maximized') { [string][char]0xE923 } else { [string][char]0xE922 })
+})
+
+# Sayfalar
+$Pages = [ordered]@{
+    NavHome    = @{ Index = 0; Title = 'Genel Bakış'; Sub = ''; List = $false }
+    NavDrivers = @{ Index = 1; Title = 'Sürücüler'; Sub = "Windows Update'teki Microsoft onaylı sürücü güncellemeleri ve sorunlu cihazlar."; List = $true }
+    NavHw      = @{ Index = 2; Title = 'Donanım'; Sub = 'Ekran kartı, yonga seti, ağ, ses ve diğer donanım sürücüleri. En yeni GPU sürücüleri için üretici aracını seçin.'; List = $true }
+    NavApps    = @{ Index = 3; Title = 'Programlar'; Sub = 'winget ile sessizce güncellenebilen programlar.'; List = $true }
+    NavWindows = @{ Index = 4; Title = 'Windows'; Sub = 'Bekleyen Windows güncellemeleri. İsteğe bağlı olanlar varsayılan olarak seçilmez.'; List = $true }
+    NavTools   = @{ Index = 5; Title = 'Araçlar ve Ayarlar'; Sub = 'Yedekleme, geri yükleme, rapor ve otomatik çalıştırma.'; List = $false }
+    NavLog     = @{ Index = 6; Title = 'İşlem Geçmişi'; Sub = "Yapılan her işlemin ayrıntılı kaydı."; List = $false }
+}
+function Show-Page([string]$nav) {
+    $p = $Pages[$nav]
+    $ui.Tabs.SelectedIndex = $p.Index
+    $ui.TxtPageTitle.Text = $p.Title
+    $ui.TxtPageSub.Text = $(if ($nav -eq 'NavHome') { $script:homeSub } else { $p.Sub })
+    $vis = $(if ($p.List) { 'Visible' } else { 'Collapsed' })
+    $ui.ListBar.Visibility = $vis
+    $ui.SearchBox.Visibility = $vis
+    if (-not $ui[$nav].IsChecked) { $ui[$nav].IsChecked = $true }
+}
+foreach ($k in @($Pages.Keys)) {
+    $ui[$k].Add_Checked({ param($s, $e) Show-Page $s.Name })
+}
+$script:homeSub = 'Sürücülerini, donanımını, programlarını ve Windows güncellemelerini tek yerden yönet.'
+$ui.StatDrivers.Add_Click({ Show-Page 'NavDrivers' })
+$ui.StatHw.Add_Click({ Show-Page 'NavHw' })
+$ui.StatApps.Add_Click({ Show-Page 'NavApps' })
+$ui.StatWindows.Add_Click({ Show-Page 'NavWindows' })
 #endregion
 
 #region İş kuyruğu (arayüz donmasın diye işler ayrı runspace'te çalışır)
@@ -898,9 +1384,14 @@ function Get-ItemCount { $n = 0; foreach ($c in $allCollections) { $n += $c.Coun
 
 function Set-Busy([bool]$busy, [string]$text) {
     $ui.BtnScan.IsEnabled = -not $busy
-    $ui.BtnUpdate.IsEnabled = (-not $busy) -and ((Get-ItemCount) -gt 0)
+    $ui.TxtScanBtn.Text = $(if ($busy) { 'Çalışıyor...' } elseif ($script:scanned) { 'Yeniden Tara' } else { 'Taramayı Başlat' })
+    $canUpdate = (-not $busy) -and ((Get-ItemCount) -gt 0)
+    $ui.BtnUpdate.IsEnabled = $canUpdate
+    $ui.BtnUpdateAll.IsEnabled = $canUpdate
     $ui.Progress.IsIndeterminate = $busy
     $ui.Progress.Visibility = $(if ($busy) { 'Visible' } else { 'Hidden' })
+    if ($busy) { $ui.HeroRing.StrokeDashArray = [System.Windows.Media.DoubleCollection]::Parse('4 3') }
+    else { $ui.HeroRing.StrokeDashArray = $null }
     if ($text) { $ui.TxtStatus.Text = $text }
 }
 
@@ -930,8 +1421,10 @@ function Get-ItemById([string]$id) {
     return $null
 }
 
+# Arka plan işlerinden gelen günlük ve durum mesajlarını arayüze aktarır
+$script:spin = 0
 $timer = New-Object System.Windows.Threading.DispatcherTimer
-$timer.Interval = [TimeSpan]::FromMilliseconds(200)
+$timer.Interval = [TimeSpan]::FromMilliseconds(150)
 $timer.Add_Tick({
     $msg = $null
     while ($sync.Queue.TryDequeue([ref]$msg)) {
@@ -939,10 +1432,15 @@ $timer.Add_Tick({
         if ($parts[0] -eq 'LOG') {
             $ui.TxtLog.AppendText($parts[1] + "`r`n"); $ui.TxtLog.ScrollToEnd()
             Write-LogFile $parts[1]
+            $ui.TxtStatus.Text = ($parts[1] -replace '^\d\d:\d\d:\d\d\s+', '')
         } elseif ($parts[0] -eq 'STATUS') {
             $it = Get-ItemById $parts[1]
             if ($it) { $it.Status = $parts[2] }
         }
+    }
+    if ($script:job) {
+        $script:spin = ($script:spin + 1) % 7
+        $ui.HeroRing.StrokeDashOffset = -$script:spin
     }
     if ($script:job -and $script:job.Handle.IsCompleted) {
         $j = $script:job
@@ -964,6 +1462,7 @@ $timer.Start()
 
 #region Tarama ve güncelleme
 $script:ignoredCount = 0
+$script:scanned = $false
 
 function Add-Items($collection, $result) {
     foreach ($r in @($result)) {
@@ -978,6 +1477,16 @@ function Add-Items($collection, $result) {
     }
 }
 
+function Set-Badge([string]$name, [int]$n) {
+    $ui["Cnt$name"].Text = "$n"
+    $ui["Badge$name"].Visibility = $(if ($n -gt 0) { 'Visible' } else { 'Collapsed' })
+}
+
+function Update-IgnoredText {
+    $n = @($Settings.Ignored).Count
+    $ui.TxtIgnored.Text = $(if ($n) { "$n öğe yok sayılıyor ve taramalarda gösterilmiyor." } else { 'Yok sayılan öğe yok.' })
+}
+
 function Update-Summary {
     $d = @($drivers | Where-Object { $_.Kind -eq 'driver' }).Count
     $p = @($drivers | Where-Object { $_.Kind -eq 'problem' }).Count
@@ -985,18 +1494,40 @@ function Update-Summary {
     $o = @($hardware | Where-Object { $_.Kind -eq 'hw' -and $_.Status -like 'Eski*' }).Count
     $a = $apps.Count
     $w = $winUpd.Count
-    $ui.TabDrivers.Header = "Sürücüler ($d)"
-    $ui.TabHw.Header      = "Donanım ($h)"
-    $ui.TabApps.Header    = "Programlar ($a)"
-    $ui.TabWindows.Header = "Windows ($w)"
-    $text = "Tarama bitti: $d sürücü, $a program, $w Windows güncellemesi. $p sorunlu cihaz, $o eski donanım sürücüsü."
-    if ($script:ignoredCount) { $text += " ($($script:ignoredCount) yok sayıldı)" }
-    $ui.TxtStatus.Text = $text
+    Set-Badge 'Drivers' ($d + $p)
+    Set-Badge 'Hw' $o
+    Set-Badge 'Apps' $a
+    Set-Badge 'Windows' $w
+    $ui.NumDrivers.Text = "$d"
+    $ui.NumProblems.Text = $(if ($p) { "$p sorunlu cihaz" } else { '' })
+    $ui.NumHw.Text = "$o"
+    $ui.NumHwTotal.Text = "$h sürücü analiz edildi"
+    $ui.NumApps.Text = "$a"
+    $ui.NumWindows.Text = "$w"
+    $total = $d + $a + $w
+    if ($total -eq 0 -and $p -eq 0) {
+        $ui.HeroTitle.Text = 'Her şey güncel'
+        $ui.HeroIcon.Text = [string][char]0xE73E
+        $ui.HeroRing.Stroke = (ConvertTo-Brush '#22C55E')
+    } else {
+        $ui.HeroTitle.Text = "$total güncelleme bulundu"
+        $ui.HeroIcon.Text = [string][char]0xE7BA
+        $ui.HeroRing.Stroke = (ConvertTo-Brush '#F59E0B')
+    }
+    $script:homeSub = 'Son tarama: ' + (Get-Date -Format 'dd.MM.yyyy HH:mm') + $(if ($script:ignoredCount) { " · $($script:ignoredCount) öğe yok sayıldı" } else { '' })
+    $ui.HeroSub.Text = $(if ($total) { 'Önerilen güncellemeler seçili. Tek tıkla hepsini kurabilir ya da sekmelerden tek tek seçebilirsin.' } else { 'Sürücülerin, programların ve Windows güncel görünüyor.' })
+    if ($ui.NavHome.IsChecked) { $ui.TxtPageSub.Text = $script:homeSub }
+    $ui.TxtStatus.Text = "Tarama bitti: $d sürücü, $a program, $w Windows güncellemesi. $p sorunlu cihaz, $o eski donanım sürücüsü."
+    $script:scanned = $true
 }
 
 function Start-Scan {
     foreach ($c in $allCollections) { $c.Clear() }
     $script:ignoredCount = 0
+    $ui.HeroTitle.Text = 'Taranıyor...'
+    $ui.HeroSub.Text = 'Sürücüler, donanım, programlar ve Windows güncellemeleri kontrol ediliyor. Bu 1-3 dakika sürebilir.'
+    $ui.HeroIcon.Text = [string][char]0xE721
+    $ui.HeroRing.Stroke = (ConvertTo-Brush '#3B82F6')
     Write-UiLog "Tarama başladı."
     Add-Job 'Sürücüler ve donanım taranıyor...' $ScanDriversCode $null {
         param($r)
@@ -1039,6 +1570,8 @@ function Start-Update {
 
     $Settings.RestorePoint = [bool]$ui.ChkRestore.IsChecked
     Save-Settings $Settings
+    $ui.HeroTitle.Text = 'Güncelleniyor...'
+    $ui.HeroSub.Text = 'İlerlemeyi listelerdeki Durum sütunundan ve İşlem Geçmişi sayfasından izleyebilirsin.'
     if ($selWu.Count -gt 0) {
         Add-Job 'Sürücüler ve Windows güncellemeleri kuruluyor...' $UpdateWuCode @{ Ids = $selWu; RestorePoint = $Settings.RestorePoint } {
             param($r)
@@ -1053,6 +1586,10 @@ function Start-Update {
     }
     Add-Job 'Bitiriliyor...' '$sync.Result = $null' $null {
         param($r)
+        $ui.HeroTitle.Text = 'Güncelleme tamamlandı'
+        $ui.HeroIcon.Text = [string][char]0xE73E
+        $ui.HeroRing.Stroke = (ConvertTo-Brush '#22C55E')
+        $ui.HeroSub.Text = 'Sonuçları listelerdeki Durum sütununda görebilirsin. Kontrol için yeniden tarayabilirsin.'
         $ui.TxtStatus.Text = 'Güncelleme tamamlandı.'
         if ($script:needReboot) {
             $script:needReboot = $false
@@ -1087,14 +1624,17 @@ function Set-AutoMode([string]$mode) {
         }
         Write-UiLog $(switch ($mode) { 'off' { 'Otomatik çalıştırma kapatıldı.' } 'scan' { 'Her pazar 12:00 otomatik tarama ayarlandı.' } 'silent' { 'Her pazar 12:00 sessiz otomatik güncelleme ayarlandı.' } })
     } catch { Write-UiLog ("Zamanlanmış görev ayarlanamadı: " + $_.Exception.Message) }
-    Update-AutoMenu
+    Update-AutoRadios
 }
 
-function Update-AutoMenu {
+$script:autoUpdating = $false
+function Update-AutoRadios {
+    $script:autoUpdating = $true
     $m = Get-AutoMode
-    $ui.MnuAutoOff.IsChecked    = $m -eq 'off'
-    $ui.MnuAutoScan.IsChecked   = $m -eq 'scan'
-    $ui.MnuAutoSilent.IsChecked = $m -eq 'silent'
+    $ui.RbAutoOff.IsChecked    = $m -eq 'off'
+    $ui.RbAutoScan.IsChecked   = $m -eq 'scan'
+    $ui.RbAutoSilent.IsChecked = $m -eq 'silent'
+    $script:autoUpdating = $false
 }
 
 function Select-Folder([string]$description, [bool]$newFolder) {
@@ -1109,13 +1649,15 @@ function Select-Folder([string]$description, [bool]$newFolder) {
 #region Olaylar
 $ui.BtnScan.Add_Click({ Start-Scan })
 $ui.BtnUpdate.Add_Click({ Start-Update })
+$ui.BtnUpdateAll.Add_Click({ Start-Update })
 
 function Get-CurrentCollection {
-    $t = $ui.Tabs.SelectedItem
-    if ([object]::ReferenceEquals($t, $ui.TabHw))      { return ,$hardware }
-    if ([object]::ReferenceEquals($t, $ui.TabApps))    { return ,$apps }
-    if ([object]::ReferenceEquals($t, $ui.TabWindows)) { return ,$winUpd }
-    return ,$drivers
+    switch ($ui.Tabs.SelectedIndex) {
+        2 { return ,$hardware }
+        3 { return ,$apps }
+        4 { return ,$winUpd }
+        default { return ,$drivers }
+    }
 }
 $ui.BtnSelAll.Add_Click({ foreach ($i in (Get-CurrentCollection)) { if ($i.Updatable) { $i.Selected = $true } } })
 $ui.BtnSelNone.Add_Click({ foreach ($i in (Get-CurrentCollection)) { $i.Selected = $false } })
@@ -1123,33 +1665,38 @@ $ui.BtnSelNone.Add_Click({ foreach ($i in (Get-CurrentCollection)) { $i.Selected
 $ui.BtnIgnore.Add_Click({
     $col = Get-CurrentCollection
     $sel = @($col | Where-Object { $_.Selected -and $_.Updatable })
-    if ($sel.Count -eq 0) { [System.Windows.MessageBox]::Show('Bu sekmede seçili öğe yok.', 'FastUpdate') | Out-Null; return }
+    if ($sel.Count -eq 0) { [System.Windows.MessageBox]::Show('Bu sayfada seçili öğe yok.', 'FastUpdate') | Out-Null; return }
     $Settings.Ignored = @(@($Settings.Ignored) + @($sel | ForEach-Object { $_.Id }) | Select-Object -Unique)
     Save-Settings $Settings
     foreach ($i in $sel) { [void]$col.Remove($i); Write-UiLog "Yok sayıldı: $($i.Name)" }
+    Update-IgnoredText
+    if ($script:scanned) { Update-Summary }
 })
 
-$ui.MnuUnignore.Add_Click({
+$ui.BtnUnignore.Add_Click({
     $n = @($Settings.Ignored).Count
     $Settings.Ignored = @()
     Save-Settings $Settings
+    Update-IgnoredText
     Write-UiLog "$n yok sayılan öğe sıfırlandı. Görmek için yeniden tarayın."
 })
 
-$ui.MnuBackup.Add_Click({
+$ui.ChkRestore.Add_Click({ $Settings.RestorePoint = [bool]$ui.ChkRestore.IsChecked; Save-Settings $Settings })
+
+$ui.BtnBackup.Add_Click({
     $p = Select-Folder 'Sürücü yedeğinin kaydedileceği klasörü seçin' $true
     if ($p) {
         $dest = Join-Path $p ('FastUpdate-Surucu-Yedegi-' + (Get-Date -Format 'yyyyMMdd-HHmm'))
         Add-Job 'Sürücüler yedekleniyor...' $BackupDriversCode @{ Path = $dest } ({ param($r) if (Test-Path $dest) { Start-Process explorer.exe $dest } }.GetNewClosure())
     }
 })
-$ui.MnuRestoreDrv.Add_Click({
+$ui.BtnRestoreDrv.Add_Click({
     $p = Select-Folder 'Daha önce alınmış sürücü yedeği klasörünü seçin' $false
     if ($p) { Add-Job 'Sürücü yedeği geri yükleniyor...' $RestoreDriversCode @{ Path = $p } $null }
 })
-$ui.MnuRestorePoint.Add_Click({ Add-Job 'Geri yükleme noktası oluşturuluyor...' $RestorePointCode $null $null })
+$ui.BtnRestorePoint.Add_Click({ Add-Job 'Geri yükleme noktası oluşturuluyor...' $RestorePointCode $null $null })
 
-$ui.MnuReport.Add_Click({
+$ui.BtnReport.Add_Click({
     $dlg = New-Object Microsoft.Win32.SaveFileDialog
     $dlg.Filter = 'HTML rapor (*.html)|*.html'
     $dlg.FileName = 'FastUpdate-Rapor-' + (Get-Date -Format 'yyyyMMdd-HHmm') + '.html'
@@ -1163,24 +1710,24 @@ $ui.MnuReport.Add_Click({
         Start-Process $dlg.FileName
     }
 })
-$ui.MnuLogs.Add_Click({ Start-Process explorer.exe $LogDir })
+$ui.BtnLogs.Add_Click({ Start-Process explorer.exe $LogDir })
 
-$ui.MnuAutoOff.Add_Click({ Set-AutoMode 'off' })
-$ui.MnuAutoScan.Add_Click({ Set-AutoMode 'scan' })
-$ui.MnuAutoSilent.Add_Click({
+$ui.RbAutoOff.Add_Checked({ if (-not $script:autoUpdating) { Set-AutoMode 'off' } })
+$ui.RbAutoScan.Add_Checked({ if (-not $script:autoUpdating) { Set-AutoMode 'scan' } })
+$ui.RbAutoSilent.Add_Checked({
+    if ($script:autoUpdating) { return }
     $a = [System.Windows.MessageBox]::Show("Her pazar 12:00'de, sorulmadan tüm sürücü ve program güncellemeleri kurulacak (yok sayılanlar hariç). Onaylıyor musunuz?", 'FastUpdate', 'YesNo', 'Question')
-    if ($a -eq 'Yes') { Set-AutoMode 'silent' } else { Update-AutoMenu }
+    if ($a -eq 'Yes') { Set-AutoMode 'silent' } else { Update-AutoRadios }
 })
 
-$ui.MnuGithub.Add_Click({ Start-Process "$RepoUrl/releases" })
-$ui.MnuAbout.Add_Click({
-    [System.Windows.MessageBox]::Show("FastUpdate $AppVersion`n`nÜcretsiz ve açık kaynak sürücü ve program güncelleyici.`nYalnızca Microsoft ve donanım üreticilerinin resmi kaynaklarını kullanır.`n`n$RepoUrl", 'Hakkında') | Out-Null
-})
+$ui.BtnGithub.Add_Click({ Start-Process "$RepoUrl/releases" })
 
 $window.Add_ContentRendered({
     $script:sysInfo = Get-SystemSummary
-    $ui.TxtSys.Text = (@($script:sysInfo.Keys | ForEach-Object { "$($_): $($script:sysInfo[$_])" }) -join "`n")
-    Update-AutoMenu
+    $ui.SysList.ItemsSource = @($script:sysInfo.GetEnumerator())
+    Update-AutoRadios
+    Update-IgnoredText
+    Show-Page 'NavHome'
     if ($Scan) { Start-Scan }
 })
 
