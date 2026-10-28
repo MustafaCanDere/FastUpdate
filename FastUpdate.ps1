@@ -859,6 +859,46 @@ $xamlText = @'
       <Setter Property="Margin" Value="0,4"/>
     </Style>
 
+    <!-- İnce koyu kaydırma çubukları -->
+    <Style x:Key="FuThumb" TargetType="Thumb">
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Thumb"><Border CornerRadius="4" Background="#334155"/></ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style TargetType="ScrollBar">
+      <Setter Property="Width" Value="10"/>
+      <Setter Property="MinWidth" Value="10"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ScrollBar">
+            <Track x:Name="PART_Track" IsDirectionReversed="True">
+              <Track.Thumb><Thumb Style="{StaticResource FuThumb}" Margin="2"/></Track.Thumb>
+            </Track>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+      <Style.Triggers>
+        <Trigger Property="Orientation" Value="Horizontal">
+          <Setter Property="Width" Value="Auto"/>
+          <Setter Property="MinWidth" Value="0"/>
+          <Setter Property="Height" Value="10"/>
+          <Setter Property="MinHeight" Value="10"/>
+          <Setter Property="Template">
+            <Setter.Value>
+              <ControlTemplate TargetType="ScrollBar">
+                <Track x:Name="PART_Track" IsDirectionReversed="False">
+                  <Track.Thumb><Thumb Style="{StaticResource FuThumb}" Margin="2"/></Track.Thumb>
+                </Track>
+              </ControlTemplate>
+            </Setter.Value>
+          </Setter>
+        </Trigger>
+      </Style.Triggers>
+    </Style>
+
     <!-- Tablo -->
     <Style TargetType="DataGrid">
       <Setter Property="AutoGenerateColumns" Value="False"/>
@@ -1090,13 +1130,13 @@ $xamlText = @'
               <DataGrid Name="GridDrivers">
                 <DataGrid.Columns>
 @@CHECK@@
-                  <DataGridTextColumn Header="Cihaz / Sürücü" Width="2*" Binding="{Binding Name}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Sınıf" Width="110" Binding="{Binding Category}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Kurulu sürüm" Width="170" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Yeni sürüm" Width="120" Binding="{Binding NewVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Boyut" Width="80" Binding="{Binding Size}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Üretici" Width="130" Binding="{Binding Source}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Durum" Width="200" Binding="{Binding Status}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Cihaz / Sürücü" Width="2.2*" MinWidth="200" Binding="{Binding Name}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Sınıf" Width="1.1*" MinWidth="90" Binding="{Binding Category}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Kurulu sürüm" Width="1.7*" MinWidth="90" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Yeni sürüm" Width="1.2*" MinWidth="90" Binding="{Binding NewVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Boyut" Width="0.8*" MinWidth="80" Binding="{Binding Size}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Üretici" Width="1.3*" MinWidth="90" Binding="{Binding Source}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Durum" Width="2*" MinWidth="90" Binding="{Binding Status}" IsReadOnly="True"/>
                 </DataGrid.Columns>
               </DataGrid>
             </Border>
@@ -1108,13 +1148,13 @@ $xamlText = @'
               <DataGrid Name="GridHw">
                 <DataGrid.Columns>
 @@CHECK@@
-                  <DataGridTextColumn Header="Donanım" Width="2*" Binding="{Binding Name}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Tür" Width="110" Binding="{Binding Category}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Sürücü sürümü" Width="140" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Sürücü tarihi" Width="100" Binding="{Binding NewVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Yaşı" Width="70" Binding="{Binding Size}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Üretici" Width="120" Binding="{Binding Source}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Durum" Width="240" Binding="{Binding Status}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Donanım" Width="2.2*" MinWidth="200" Binding="{Binding Name}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Tür" Width="1.1*" MinWidth="90" Binding="{Binding Category}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Sürücü sürümü" Width="1.4*" MinWidth="90" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Sürücü tarihi" Width="1*" MinWidth="90" Binding="{Binding NewVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Yaşı" Width="0.7*" MinWidth="70" Binding="{Binding Size}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Üretici" Width="1.2*" MinWidth="90" Binding="{Binding Source}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Durum" Width="2.4*" MinWidth="90" Binding="{Binding Status}" IsReadOnly="True"/>
                 </DataGrid.Columns>
               </DataGrid>
             </Border>
@@ -1126,12 +1166,12 @@ $xamlText = @'
               <DataGrid Name="GridApps">
                 <DataGrid.Columns>
 @@CHECK@@
-                  <DataGridTextColumn Header="Program" Width="2*" Binding="{Binding Name}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Program" Width="2.2*" MinWidth="200" Binding="{Binding Name}" IsReadOnly="True"/>
                   <DataGridTextColumn Header="Kimlik" Width="1.5*" Binding="{Binding Id}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Kurulu sürüm" Width="130" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Yeni sürüm" Width="130" Binding="{Binding NewVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Kaynak" Width="80" Binding="{Binding Source}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Durum" Width="170" Binding="{Binding Status}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Kurulu sürüm" Width="1.3*" MinWidth="90" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Yeni sürüm" Width="1.3*" MinWidth="90" Binding="{Binding NewVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Kaynak" Width="0.8*" MinWidth="80" Binding="{Binding Source}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Durum" Width="1.7*" MinWidth="90" Binding="{Binding Status}" IsReadOnly="True"/>
                 </DataGrid.Columns>
               </DataGrid>
             </Border>
@@ -1143,12 +1183,12 @@ $xamlText = @'
               <DataGrid Name="GridWindows">
                 <DataGrid.Columns>
 @@CHECK@@
-                  <DataGridTextColumn Header="Güncelleme" Width="3*" Binding="{Binding Name}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Kategori" Width="150" Binding="{Binding Category}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="KB" Width="100" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Önem" Width="90" Binding="{Binding NewVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Boyut" Width="80" Binding="{Binding Size}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Durum" Width="200" Binding="{Binding Status}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Güncelleme" Width="3*" MinWidth="240" Binding="{Binding Name}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Kategori" Width="1.5*" MinWidth="90" Binding="{Binding Category}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="KB" Width="1*" MinWidth="90" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Önem" Width="0.9*" MinWidth="90" Binding="{Binding NewVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Boyut" Width="0.8*" MinWidth="80" Binding="{Binding Size}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Durum" Width="2*" MinWidth="90" Binding="{Binding Status}" IsReadOnly="True"/>
                 </DataGrid.Columns>
               </DataGrid>
             </Border>
