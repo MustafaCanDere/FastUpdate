@@ -706,7 +706,7 @@ public class FuItem : INotifyPropertyChanged {
 '@
 
 $checkColumn = @'
-              <DataGridTemplateColumn Header="" Width="44">
+              <DataGridTemplateColumn Header="" Width="44" MinWidth="44" CanUserResize="False">
                 <DataGridTemplateColumn.CellTemplate>
                   <DataTemplate>
                     <CheckBox IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding Updatable}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -914,6 +914,7 @@ $xamlText = @'
       <Setter Property="RowHeight" Value="38"/>
       <Setter Property="SelectionMode" Value="Extended"/>
       <Setter Property="SelectionUnit" Value="FullRow"/>
+      <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
     </Style>
     <Style TargetType="DataGridColumnHeader">
       <Setter Property="Background" Value="#0F1729"/>
@@ -1130,13 +1131,13 @@ $xamlText = @'
               <DataGrid Name="GridDrivers">
                 <DataGrid.Columns>
 @@CHECK@@
-                  <DataGridTextColumn Header="Cihaz / Sürücü" Width="2.2*" MinWidth="200" Binding="{Binding Name}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Sınıf" Width="1.1*" MinWidth="90" Binding="{Binding Category}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Kurulu sürüm" Width="1.7*" MinWidth="90" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Yeni sürüm" Width="1.2*" MinWidth="90" Binding="{Binding NewVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Boyut" Width="0.8*" MinWidth="80" Binding="{Binding Size}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Üretici" Width="1.3*" MinWidth="90" Binding="{Binding Source}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Durum" Width="2*" MinWidth="90" Binding="{Binding Status}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Cihaz / Sürücü" Width="2.2*" MinWidth="160" Binding="{Binding Name}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Sınıf" Width="1.1*" MinWidth="60" Binding="{Binding Category}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Kurulu sürüm" Width="1.7*" MinWidth="60" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Yeni sürüm" Width="1.2*" MinWidth="60" Binding="{Binding NewVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Boyut" Width="0.8*" MinWidth="60" Binding="{Binding Size}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Üretici" Width="1.3*" MinWidth="60" Binding="{Binding Source}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Durum" Width="2*" MinWidth="60" Binding="{Binding Status}" IsReadOnly="True"/>
                 </DataGrid.Columns>
               </DataGrid>
             </Border>
@@ -1148,13 +1149,13 @@ $xamlText = @'
               <DataGrid Name="GridHw">
                 <DataGrid.Columns>
 @@CHECK@@
-                  <DataGridTextColumn Header="Donanım" Width="2.2*" MinWidth="200" Binding="{Binding Name}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Tür" Width="1.1*" MinWidth="90" Binding="{Binding Category}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Sürücü sürümü" Width="1.4*" MinWidth="90" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Sürücü tarihi" Width="1*" MinWidth="90" Binding="{Binding NewVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Donanım" Width="2.2*" MinWidth="160" Binding="{Binding Name}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Tür" Width="1.1*" MinWidth="60" Binding="{Binding Category}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Sürücü sürümü" Width="1.4*" MinWidth="60" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Sürücü tarihi" Width="1*" MinWidth="60" Binding="{Binding NewVersion}" IsReadOnly="True"/>
                   <DataGridTextColumn Header="Yaşı" Width="0.7*" MinWidth="70" Binding="{Binding Size}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Üretici" Width="1.2*" MinWidth="90" Binding="{Binding Source}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Durum" Width="2.4*" MinWidth="90" Binding="{Binding Status}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Üretici" Width="1.2*" MinWidth="60" Binding="{Binding Source}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Durum" Width="2.4*" MinWidth="60" Binding="{Binding Status}" IsReadOnly="True"/>
                 </DataGrid.Columns>
               </DataGrid>
             </Border>
@@ -1166,12 +1167,12 @@ $xamlText = @'
               <DataGrid Name="GridApps">
                 <DataGrid.Columns>
 @@CHECK@@
-                  <DataGridTextColumn Header="Program" Width="2.2*" MinWidth="200" Binding="{Binding Name}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Program" Width="2.2*" MinWidth="160" Binding="{Binding Name}" IsReadOnly="True"/>
                   <DataGridTextColumn Header="Kimlik" Width="1.5*" Binding="{Binding Id}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Kurulu sürüm" Width="1.3*" MinWidth="90" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Yeni sürüm" Width="1.3*" MinWidth="90" Binding="{Binding NewVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Kaynak" Width="0.8*" MinWidth="80" Binding="{Binding Source}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Durum" Width="1.7*" MinWidth="90" Binding="{Binding Status}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Kurulu sürüm" Width="1.3*" MinWidth="60" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Yeni sürüm" Width="1.3*" MinWidth="60" Binding="{Binding NewVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Kaynak" Width="0.8*" MinWidth="60" Binding="{Binding Source}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Durum" Width="1.7*" MinWidth="60" Binding="{Binding Status}" IsReadOnly="True"/>
                 </DataGrid.Columns>
               </DataGrid>
             </Border>
@@ -1184,11 +1185,11 @@ $xamlText = @'
                 <DataGrid.Columns>
 @@CHECK@@
                   <DataGridTextColumn Header="Güncelleme" Width="3*" MinWidth="240" Binding="{Binding Name}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Kategori" Width="1.5*" MinWidth="90" Binding="{Binding Category}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="KB" Width="1*" MinWidth="90" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Önem" Width="0.9*" MinWidth="90" Binding="{Binding NewVersion}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Boyut" Width="0.8*" MinWidth="80" Binding="{Binding Size}" IsReadOnly="True"/>
-                  <DataGridTextColumn Header="Durum" Width="2*" MinWidth="90" Binding="{Binding Status}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Kategori" Width="1.5*" MinWidth="60" Binding="{Binding Category}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="KB" Width="1*" MinWidth="60" Binding="{Binding CurrentVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Önem" Width="0.9*" MinWidth="60" Binding="{Binding NewVersion}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Boyut" Width="0.8*" MinWidth="60" Binding="{Binding Size}" IsReadOnly="True"/>
+                  <DataGridTextColumn Header="Durum" Width="2*" MinWidth="60" Binding="{Binding Status}" IsReadOnly="True"/>
                 </DataGrid.Columns>
               </DataGrid>
             </Border>
